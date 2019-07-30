@@ -7,14 +7,14 @@
 //
 
 /**
- * 添加请求操作对象
+ * 添加请求结点
  * 取消请求
- * 根据请求操作对象发出请求信息
- * 管理失败请求操作对象
+ * 根据请求结点对象发出请求信息
+ * 管理失败请求结点
  * 响应数据放入到操作对象中
  * 该类为单例类
  *
- * 支撑类为网络请求框架AFNetworking
+ * 支撑类为自选
  */
 
 import UIKit
@@ -38,6 +38,10 @@ class XYYZWorldCenter: NSObject {
     
     override init() {
         super.init()
+        
+        //开启网络监听
+        self.networkReachability?.startListening()
+        
     }
     
     convenience init(configuration: XYYZWorldConfiguration) {
@@ -52,6 +56,54 @@ class XYYZWorldCenter: NSObject {
         return XYYZWorldCenter(configuration: configuration)
     }()
     
+    public var configuration: XYYZWorldConfiguration!
+    
+    //MARK : - TODO
+    // 监听网络状态，三方
+    lazy var networkReachability: NetworkReachabilityManager? = {
+        
+        let mananger = NetworkReachabilityManager()
+        mananger?.listener = { (status) in
+            
+            switch status {
+                
+            case .unknown:// 未知不作处理
+                break
+                
+            case .notReachable: //
+                break
+                
+            case .reachable(.ethernetOrWiFi): //wifi
+                self.onceAgainNetworkFaild()
+                break
+                
+            case .reachable(.wwan): //移动网络
+                self.onceAgainNetworkFaild()
+                break
+                
+            }
+            
+        }
+    
+        return mananger
+        
+    }()
+    
+    private lazy var unauthorizedQueue: XYYZNodeQueue = {
+        let _unauthorizedQueue  = XYYZNodeQueue()
+        return _unauthorizedQueue
+    }()
+    
+    private lazy var networkFaildQueue: XYYZNodeQueue = {
+        
+        let _networkFaildQueue = XYYZNodeQueue()
+        return _networkFaildQueue
+        
+    }()
+}
+
+//和请求相关的
+extension XYYZWorldCenter {
     
     func reuqest(node: XYYZNode) {
         
@@ -82,24 +134,8 @@ class XYYZWorldCenter: NSObject {
         
     }
     
-    private var configuration: XYYZWorldConfiguration!
-    
-    private lazy var unauthorizedQueue: XYYZNodeQueue = {
-        let _unauthorizedQueue  = XYYZNodeQueue()
-        return _unauthorizedQueue
-    }()
-    
-    private lazy var networkFaildQueue: XYYZNodeQueue = {
-        
-        let _networkFaildQueue = XYYZNodeQueue()
-        return _networkFaildQueue
-        
-    }()
-}
-
-// POST
-extension XYYZWorldCenter {
-    
+    //MARK : - TODO
+    // POST 这个方法的实现，需要通过第三方
     private func requestOfPost(node: XYYZNode) {
         guard let url = URL(string: node.URL) else {
             return
@@ -114,11 +150,8 @@ extension XYYZWorldCenter {
         }
     }
     
-}
-
-// Get
-extension XYYZWorldCenter {
-    
+    //MARK : - TODO
+    // Get 这个方法的实现，需要通过第三方
     private func requestOfGet(node: XYYZNode) {
         
         guard let url = URL(string: node.URL) else {
@@ -132,13 +165,15 @@ extension XYYZWorldCenter {
             self.handleError(error: error as NSError, node: node)
             
         }
-
+        
     }
+    
 }
 
 //处理失败的node
 extension XYYZWorldCenter {
     
+    //根据错误代码添加到不同的队列中
     private func handleError(error: NSError, node: XYYZNode) {
         
         if self.configuration.networkExcCode.contains(error.code) {
@@ -164,15 +199,18 @@ extension XYYZWorldCenter {
 
     }
     
-    private func onceAgainUnauthorized() {
+    //授权成功后，尝试发出网络请求
+    func onceAgainUnauthorized() {
         self.onceAgainRequest(queue: self.unauthorizedQueue)
     }
     
+    //网络状态正常后，尝试发出网络请求
     private func onceAgainNetworkFaild() {
         self.onceAgainRequest(queue: self.networkFaildQueue)
     }
 
-   private func addQueue(node: XYYZNode, queue: XYYZNodeQueue) {
+    //添加结点到队列中
+    private func addQueue(node: XYYZNode, queue: XYYZNodeQueue) {
     
         let index = queue.find { (item) -> Bool in
             return node.URL.elementsEqual(item.URL)
@@ -197,7 +235,7 @@ extension XYYZWorldCenter {
         }
     }
     
-    // 尝试请求一次
+    // 尝试请求
     private func onceAgainRequest(queue: XYYZNodeQueue) {
         
         while queue.length() > 0 {
@@ -210,6 +248,11 @@ extension XYYZWorldCenter {
         }
         
     }
+    
+    
+}
+
+extension XYYZWorldCenter {
     
     
 }
